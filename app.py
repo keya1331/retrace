@@ -48,8 +48,11 @@ if uploaded_file is not None:
 
     st.dataframe(df)
     #fetching unique users
-    user_list=df['user'].unique().tolist()
-    user_list.remove("3rd yr CSE divA announcement")
+    user_list = df['user'].dropna().unique().tolist()
+
+# Filter out system notifications if needed
+    user_list = [user for user in user_list if "Messages and calls are end-to-end encrypted" not in user]
+
     user_list.sort()
     user_list.insert(0,"Overall")
     selected_user=st.sidebar.selectbox("SHOW ANALYSIS W.R.T. ",user_list)
