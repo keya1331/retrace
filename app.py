@@ -18,9 +18,6 @@ st.markdown(
         <p style="font-size: 18px; font-family: 'Trebuchet MS', sans-serif; color: #ddd;">
             Upload your chat file to get insightful analytics on your conversations.
         </p>
-         <p style="font-size: 18px; font-family: 'Trebuchet MS', sans-serif; color: #ddd;">
-            Brought to you by Mohammed Fowzan.
-        </p>
     </div>
     
     <style>
@@ -32,7 +29,7 @@ st.markdown(
         color: WHITE;
     }
     </style>
-    <div class="footer">© Fowzan</div>
+    <div class="footer">©</div>
     """,
     unsafe_allow_html=True
 )
