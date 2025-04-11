@@ -1,14 +1,24 @@
 import streamlit as st
-import preprocessor
-import helper
+import os
+from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 
+# Custom modules
+try:
+    import preprocessor
+    import helper
+except ModuleNotFoundError:
+    st.error("Missing custom modules: `preprocessor.py` and `helper.py` must be present in the same directory.")
+    st.stop()
+
+# Streamlit configuration
 st.set_page_config(page_title="WhatsApp Chat Analyzer", page_icon="💬")
 
 st.sidebar.title("Whatsapp Chat Analyzer")
 
+# Header and description
 st.markdown(
     """
     <div style="text-align: center;">
@@ -19,87 +29,66 @@ st.markdown(
             Upload your chat file to get insightful analytics on your conversations.
         </p>
     </div>
-    
-    <style>
-    .footer {
-        position: fixed;
-        bottom: 10px;
-        right: 10px;
-        font-size: 24px;
-        color: WHITE;
-    }
-    </style>
-    <div class="footer">©</div>
     """,
     unsafe_allow_html=True
 )
 
+uploaded_file = st.sidebar.file_uploader("Choose a chat text file", type=["txt"])
 
-uploaded_file = st.sidebar.file_uploader("Choose a file")
+# Save chat file only if running in an environment where file system is available
+UPLOAD_DIR = "uploaded_chats"
+if uploaded_file is not None:
+    try:
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"chat_{timestamp}.txt"
+        file_path = os.path.join(UPLOAD_DIR, filename)
+        with open(file_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+    except Exception as e:
+        st.warning(f"Couldn't save file: {e}")
+
 if uploaded_file is not None:
     st.success("File uploaded successfully! Processing...")
-    bytes_data = uploaded_file.getvalue()
-    data=bytes_data.decode("utf-8")
-    # st.text(data)
-    df = preprocessor.preprocess(data)
+
+    # Decode uploaded file
+    try:
+        data = uploaded_file.getvalue().decode("utf-8")
+        df = preprocessor.preprocess(data)
+    except Exception as e:
+        st.error(f"Error processing file: {e}")
+        st.stop()
 
     st.dataframe(df)
-    #fetching unique users
+
     user_list = df['user'].dropna().unique().tolist()
-
-# Filter out system notifications if needed
     user_list = [user for user in user_list if "Messages and calls are end-to-end encrypted" not in user]
-
     user_list.sort()
-    user_list.insert(0,"Overall")
-    selected_user=st.sidebar.selectbox("SHOW ANALYSIS W.R.T. ",user_list)
+    user_list.insert(0, "Overall")
+
+    selected_user = st.sidebar.selectbox("SHOW ANALYSIS W.R.T.", user_list)
 
     if st.sidebar.button("SHOW ANALYSIS!"):
         st.header("DETAILED ANALYSIS OF THE Whatsapp CHAT!")
-        num_messages,total_words,media_shared,link_shared = helper.fetch_stats(selected_user,df)
-        c1,c2,c3,c4 = st.columns(4)
 
-        with c1:
-            st.header("TOTAL MESSAGES:")
-            st.title(num_messages)
-        with c2:
-            st.header("TOTAL WORDS:")
-            st.title(total_words)
-        with c3:
-            st.header("MEDIA SHARED:")
-            st.title(media_shared)
-        with c4:
-            st.header("LINKS SHARED:")
-            st.title(link_shared)
+        # Basic Stats
+        num_messages, total_words, media_shared, link_shared = helper.fetch_stats(selected_user, df)
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Messages", num_messages)
+        c2.metric("Words", total_words)
+        c3.metric("Media", media_shared)
+        c4.metric("Links", link_shared)
 
-        
-        
+        # TF-IDF
         st.title("📝 Term Significance Analysis (TF-IDF)")
-        st.markdown("""
-            Term Frequency-Inverse Document Frequency (TF-IDF) helps identify the most unique 
-            and important words for each person in the chat.
-        """)
-
-        # Perform TF-IDF analysis
         tfidf_results, full_tfidf_df = helper.perform_tfidf_analysis(selected_user, df)
-
-        # Visualize results
         tfidf_fig = helper.plot_tfidf_results(tfidf_results, selected_user)
-        st.pyplot(tfidf_fig)
-
-        # Show the detailed data
-        if not isinstance(full_tfidf_df, type(None)) and not full_tfidf_df.empty:
+        if tfidf_fig: st.pyplot(tfidf_fig)
+        if full_tfidf_df is not None and not full_tfidf_df.empty:
             st.subheader("Detailed TF-IDF Scores")
-            st.markdown("""
-                This table shows the significance scores of terms in the chat. Higher scores indicate 
-                terms that are more unique to a specific user and used frequently by them.
-            """)
             st.dataframe(full_tfidf_df.head(20), hide_index=True)
-        else:
-            st.info("Not enough data for detailed TF-IDF analysis")
 
-
-        
+        # Monthly Timeline
         st.title("Monthly Timeline")
         timeline = helper.monthly_timeline(selected_user, df)
         fig, ax = plt.subplots()
@@ -107,22 +96,20 @@ if uploaded_file is not None:
         plt.xticks(rotation='vertical')
         st.pyplot(fig)
 
-        # daily timeline
+        # Daily Timeline
         st.title("Daily Timeline")
-        daily_timeline = helper.daily_timeline(selected_user, df)
+        daily = helper.daily_timeline(selected_user, df)
         fig, ax = plt.subplots()
-        ax.plot(daily_timeline['only_date'], daily_timeline['user_message'], color='black')
+        ax.plot(daily['only_date'], daily['user_message'], color='black')
         plt.xticks(rotation='vertical')
         st.pyplot(fig)
 
-
-
-        # activity map
-        st.title('ACTIVITY MAP')
+        # Activity Map
+        st.title("ACTIVITY MAP")
         c1, c2 = st.columns(2)
 
         with c1:
-            st.header("MOST BUSY DAY")
+            st.subheader("Busy Days")
             busy_day = helper.week_activity_map(selected_user, df)
             fig, ax = plt.subplots()
             ax.bar(busy_day.index, busy_day.values, color='purple')
@@ -130,105 +117,74 @@ if uploaded_file is not None:
             st.pyplot(fig)
 
         with c2:
-            st.header("MOST BUSY MONTH")
+            st.subheader("Busy Months")
             busy_month = helper.month_activity_map(selected_user, df)
             fig, ax = plt.subplots()
             ax.bar(busy_month.index, busy_month.values, color='orange')
             plt.xticks(rotation='vertical')
             st.pyplot(fig)
 
+        # Heatmap
         st.title("WEEKLY ACTIVITY MAP")
-        user_heatmap = helper.activity_heatmap(selected_user, df)
+        heatmap = helper.activity_heatmap(selected_user, df)
         fig, ax = plt.subplots()
-        ax = sns.heatmap(user_heatmap)
+        sns.heatmap(heatmap, ax=ax)
         st.pyplot(fig)
 
-
-
-        if selected_user=="Overall":
-            st.title("MOST BUSY USERS")
-            x,df1=helper.fetch_most_busy_users(df)
-            fig,ax=plt.subplots()
-            c1,c2=st.columns(2)
+        # Most Busy Users
+        if selected_user == "Overall":
+            st.title("Most Active Users")
+            x, df1 = helper.fetch_most_busy_users(df)
+            c1, c2 = st.columns(2)
             with c1:
+                fig, ax = plt.subplots()
                 ax.bar(x.index, x.values, color='red')
                 plt.xticks(rotation='vertical')
                 st.pyplot(fig)
             with c2:
                 st.dataframe(df1)
 
-
-
-        #wordcloud
-        st.title("WORD CLOUD")
-        df_wc=helper.createwordcloud(selected_user, df)
-        fig,ax=plt.subplots()
+        # Word Cloud
+        st.title("Word Cloud")
+        df_wc = helper.createwordcloud(selected_user, df)
+        fig, ax = plt.subplots()
         ax.imshow(df_wc)
         st.pyplot(fig)
 
-        #MOST COMMON WORDS
-        st.title("MOST COMMON WORDS")
-        most_common_df=helper.most_common_words(selected_user, df)
-        fig,ax=plt.subplots()
-        ax.barh(most_common_df[0],most_common_df[1])
+        # Common Words
+        st.title("Most Common Words")
+        most_common_df = helper.most_common_words(selected_user, df)
+        fig, ax = plt.subplots()
+        ax.barh(most_common_df[0], most_common_df[1])
         st.pyplot(fig)
-        plt.xticks(rotation="vertical")
-        # st.dataframe(most_common_df)
 
-
-        #emoji
-        emoji_df = helper.emoji_helper(selected_user, df)
-
+        # Emoji Analysis
         st.title("Emoji Analysis")
+        emoji_df = helper.emoji_helper(selected_user, df)
         c1, c2 = st.columns(2)
         with c1:
             st.dataframe(emoji_df)
         with c2:
             fig, ax = plt.subplots()
-            if isinstance(emoji_df, list):
-                emoji_df = pd.DataFrame(emoji_df)
-
             if not emoji_df.empty and len(emoji_df.columns) > 1:
                 ax.pie(emoji_df.iloc[:, 1].head(), labels=emoji_df.iloc[:, 0].head(), autopct="%0.2f")
+                st.pyplot(fig)
             else:
                 st.warning("Not enough emoji data to generate a pie chart.")
 
-            st.pyplot(fig)
-
-        # Add this in the if st.sidebar.button("SHOW ANALYSIS!") block
-        # After your existing analysis sections
-
+        # Sentiment Analysis
         st.title("💭 Sentiment Analysis")
+        sentiment_counts, daily_sentiment, user_sentiment, sentiment_examples, sentiment_df = helper.analyze_chat_sentiment(selected_user, df)
 
-        # Get sentiment analysis results
-        sentiment_counts, daily_sentiment, user_sentiment, sentiment_examples, sentiment_df = helper.analyze_chat_sentiment(
-            selected_user, df)
-
-        # Display overall metrics
         col1, col2, col3 = st.columns(3)
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            total_counts = sum(sentiment_counts.values()) if sentiment_counts else 1
-            positive_pct = (sentiment_counts.get('positive', 0) / total_counts * 100) if total_counts > 0 else 0
-            st.metric("Positive Messages",
-                    f"{sentiment_counts.get('positive', 0)}",
-                    f"{positive_pct:.1f}%")
-        with col2:
-            neutral_pct = (sentiment_counts.get('neutral', 0) / total_counts * 100) if total_counts > 0 else 0
-            st.metric("Neutral Messages",
-                    f"{sentiment_counts.get('neutral', 0)}",
-                    f"{neutral_pct:.1f}%")
-        with col3:
-            negative_pct = (sentiment_counts.get('negative', 0) / total_counts * 100) if total_counts > 0 else 0
-            st.metric("Negative Messages",
-                    f"{sentiment_counts.get('negative', 0)}",
-                    f"{negative_pct:.1f}%")
+        total_counts = sum(sentiment_counts.values()) if sentiment_counts else 1
 
-        # Plot visualizations
-        fig_dist, fig_timeline, fig_user = helper.plot_sentiment_analysis(
-            sentiment_counts, daily_sentiment, user_sentiment)
+        col1.metric("Positive", sentiment_counts.get('positive', 0), f"{(sentiment_counts.get('positive', 0) / total_counts) * 100:.1f}%")
+        col2.metric("Neutral", sentiment_counts.get('neutral', 0), f"{(sentiment_counts.get('neutral', 0) / total_counts) * 100:.1f}%")
+        col3.metric("Negative", sentiment_counts.get('negative', 0), f"{(sentiment_counts.get('negative', 0) / total_counts) * 100:.1f}%")
 
-        # Display visualizations
+        fig_dist, fig_timeline, fig_user = helper.plot_sentiment_analysis(sentiment_counts, daily_sentiment, user_sentiment)
+
         st.subheader("📊 Sentiment Distribution")
         st.pyplot(fig_dist)
 
@@ -239,14 +195,22 @@ if uploaded_file is not None:
             st.subheader("👥 User Sentiment Comparison")
             st.pyplot(fig_user)
 
-        # Display message examples in a dataframe
-        st.subheader("Message Sentiment Analysis")
-        display_df = sentiment_df[[ 'sentiment', 'confidence','user','user_message']]
+        st.subheader("Message Sentiment Table")
+        display_df = sentiment_df[['sentiment', 'confidence', 'user', 'user_message']]
         display_df = display_df[display_df['confidence'] > 0.6].sort_values('confidence', ascending=False)
-        display_df.columns = ['Sentiment', 'Confidence','Name', 'Message']
+        display_df.columns = ['Sentiment', 'Confidence', 'Name', 'Message']
         st.dataframe(display_df, hide_index=True)
-        
-        
-        
+
 else:
     st.info("Upload a WhatsApp chat file to start analyzing 📂")
+
+with st.sidebar.expander("🔐 Admin Panel"):
+    admin_pass = st.text_input("Enter admin password", type="password")
+    if admin_pass == "abc":
+        st.success("Access granted")
+        uploaded_files = os.listdir("uploaded_chats")
+        selected_file = st.selectbox("Choose uploaded chat", uploaded_files)
+        if selected_file:
+            with open(os.path.join("uploaded_chats", selected_file), "r", encoding="utf-8") as f:
+                chat_text = f.read()
+            st.text_area("Chat content", chat_text, height=400)
