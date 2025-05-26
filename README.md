@@ -1,5 +1,5 @@
 # retrace 
-an analyzer for exported whatsapp chats — structure, sentiment, and stats.
+an analyzer for exported whatsapp chats: structure, sentiment, and stats.
 
 built during a data science course.   
 my part: sentiment analysis, system behavior, and the idea itself.
