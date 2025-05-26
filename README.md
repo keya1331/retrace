@@ -1,4 +1,4 @@
-# retrace 🌫  
+# retrace 
 an analyzer for exported whatsapp chats — structure, sentiment, and stats.
 
 built during a data science course.   
@@ -23,5 +23,5 @@ my part: sentiment analysis, system behavior, and the idea itself.
 ---
 
 ## run it  
-[deployed app →](https://chat-analysis-ds.streamlit.app/)  
-[project report →](./chat-analyzer-report.pdf)
+[› deployed app](https://chat-analysis-ds.streamlit.app/)  
+[› project report →](./chat-analyzer-report.pdf)
