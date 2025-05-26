@@ -1,9 +1,27 @@
-# Team 13 Data Science Project - Chat Analysis Tool
+# retrace 🌫  
+an analyzer for exported whatsapp chats — structure, sentiment, and stats.
 
-Members:- <br>
-Fowzan(U22CS008) <br>
-Suchi(U22CS018)<br>
-Param(U22CS023)<br>
-Keya(U22CS047)<br>
-Diya(U22CS056)<br>
+built during a data science course.   
+my part: sentiment analysis, system behavior, and the idea itself.
 
+---
+
+## features  
+- parses raw chat logs (android & iphone)  
+- visualizes timelines, emoji usage, word clouds  
+- tf-idf scoring per user  
+- sentiment analysis with textblob + vader  
+- group/user-level insights
+
+---
+
+## tech stack  
+- python, streamlit  
+- pandas, matplotlib, seaborn  
+- nltk, textblob, vader, scikit-learn
+
+---
+
+## run it  
+[deployed app →](https://chat-analysis-ds.streamlit.app/)  
+[project report →](./chat-analyzer-report.pdf)
