@@ -24,4 +24,4 @@ my part: sentiment analysis, system behavior, and the idea itself.
 
 ## run it  
 [› deployed app](https://chat-analysis-ds.streamlit.app/)  
-[› project report →](./chat-analyzer-report.pdf)
+[› project report](./chat-analyzer-report.pdf)
